@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"flag"
+	"log"
+	"os"
 )
 
 var configFile = flag.String("config", "./config.yaml", "Use this config file.")
@@ -12,19 +14,29 @@ import: Import cert to server.`)
 var pubkey = flag.String("pub", "", "Public key to use in action.")
 var prikey = flag.String("pri", "", "Private key to use in action.")
 
+func init() {
+	logFile, err := os.OpenFile("./cmserver.log", os.O_CREATE | os. O_WRONLY | os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Println("[ERROR] OPen log file failed, err: ", err)
+		return
+	}
+	log.SetOutput(logFile)
+	log.SetFlags(log.Flags() | log.Llongfile)
+}
+
 func main() {
 	var err error
 	var conf *FDConf
-	flag.Parse()
-
 	var c FDConf
+
+	flag.Parse()
 	conf, err = c.GetConf(*configFile)
 	if conf == nil {
 		fmt.Println(err)
 		return
 	}
 
-	fmt.Println("action :", *action)
+	log.Println("action :", *action)
 
 	switch *action {
 	case "import":
@@ -39,11 +51,10 @@ func main() {
 		if code != 0 {
 			return
 		}
-		fmt.Println("action import.\n")
 	default:
-		fmt.Println("[ERROR] Action not support.\n")
+		log.Println("[ERROR] Action not support.")
 	}
-	fmt.Println(conf.CertPath)
+	log.Println(conf.CertPath)
 
-	fmt.Println("hello world\n")
+	fmt.Println("hello world")
 }
