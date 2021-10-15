@@ -4,19 +4,21 @@ import (
 	"fmt"
 	"os"
 	"io/ioutil"
+	"strings"
 	"errors"
-	"bytes"
 	"path/filepath"
-	"github.com/spacemonkeygo/openssl"
+	"encoding/pem"
+	"crypto/x509"
+	"crypto/rsa"
 )
 
 type CertStorage struct {
 	CertPath string
 }
 
-func (s *CertStorage) CheckPubPriPair(pub string, pri string) (int, error) {
+func (s *CertStorage) CheckPubPriPair(cert string, pri string) (int, error) {
 	var err error
-	_, err = os.Stat(pub)
+	_, err = os.Stat(cert)
 	if err != nil {
 		return 1, err
 	}
@@ -25,55 +27,45 @@ func (s *CertStorage) CheckPubPriPair(pub string, pri string) (int, error) {
 		return 1, err
 	}
 
-	var prikey openssl.PrivateKey
-	var pubkey openssl.PublicKey
-	var cert *openssl.Certificate
 	var keybytes []byte
-	var keybytes2 []byte
 	keybytes, err = ioutil.ReadFile(pri)
 	if err != nil {
 		return 1, err
 	}
-	prikey, err = openssl.LoadPrivateKeyFromPEM(keybytes)
+
+	block, _ := pem.Decode(keybytes)
+	if block == nil || block.Type != "RSA PRIVATE KEY" {
+		return 1, errors.New("Faile to decode PEM code containing Private key.")
+	}
+
+	var prikey *rsa.PrivateKey
+	prikey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		return 1, err
 	}
 
-	keybytes, err = ioutil.ReadFile(pub)
+	keybytes, err = ioutil.ReadFile(cert)
 	if err != nil {
 		return 1, err
 	}
 
-	certs := openssl.SplitPEM(keybytes)
-	if len(certs) == 0 {
-		return 1, errors.New("Split PEM Failed.")
+	block, _ = pem.Decode(keybytes)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return 1, errors.New("faile to decode PEM code containing Certificat.")
 	}
 
-	cert, err = openssl.LoadCertificateFromPEM(certs[0])
+	var certs []*x509.Certificate
+	certs, err = x509.ParseCertificates(block.Bytes)
 	if err != nil {
 		return 1, err
 	}
 
-	pubkey, err = cert.PublicKey()
-	if err != nil {
-		return 1, err
-	}
 
-	keybytes, err = prikey.MarshalPKIXPublicKeyPEM()
-	if err != nil {
-		return 1, err
+	if prikey.PublicKey.Equal(certs[0].PublicKey) {
+		return 0, nil
+	} else {
+		return 1, errors.New("Pub and pri key is not a pair.")
 	}
-
-	keybytes2, err = pubkey.MarshalPKIXPublicKeyPEM()
-	if err != nil {
-		return 1, err
-	}
-
-	if !bytes.Equal(keybytes, keybytes2) {
-		return 1, errors.New("Pub and Pri key is not a pair.")
-	}
-
-	return 0, nil
 }
 
 func (s *CertStorage) Init(path string) (int, error) {
@@ -105,30 +97,30 @@ func (s *CertStorage) CertList() {
 }
 
 func (s *CertStorage) CertNewName(cert string) (string, error) {
-	var certObj *openssl.Certificate
-	var err error
-	var keybytes []byte
-	keybytes, err = ioutil.ReadFile(cert)
-	if err != nil {
-		return "", err
-	}
-	certObj, err = openssl.LoadCertificateFromPEM(keybytes)
+	keybytes, err := ioutil.ReadFile(cert)
 	if err != nil {
 		return "", err
 	}
 
-	var name *openssl.Name
-	name, err = certObj.GetSubjectName()
-	if (err != nil) {
+	block, _ := pem.Decode(keybytes)
+	if block == nil {
+		return "", errors.New("Failed to decode PEM data containg cert info.")
+	}
+
+	var certs []*x509.Certificate
+	certs, err = x509.ParseCertificates(block.Bytes)
+	if err != nil {
 		return "", err
 	}
 
-	entry, ok := name.GetEntry(openssl.NID_commonName)
-	if !ok {
-		return "", errors.New("Get Entry failed.")
+	if len(certs) == 0 {
+		return "", errors.New("Certificate file contains 0 certificat.")
 	}
-
-	return entry, nil
+	//fmt.Println(certs[0].NotBefore)
+	//fmt.Println(certs[0].NotAfter)
+	y := certs[0].NotAfter
+	newFileName := fmt.Sprintf("%s_%d_%02d_%02d", strings.Replace(certs[0].Subject.CommonName, "*", "star", -1), y.Year(), y.Month(), y.Day())
+	return newFileName, nil
 }
 
 func (s *CertStorage) ImportCert(pub string, pri string) (int, error) {
