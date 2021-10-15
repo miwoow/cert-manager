@@ -41,14 +41,13 @@ func main() {
 	switch *action {
 	case "import":
 		var cs CertStorage
-		var code int
 		_, err := cs.Init(conf.CertPath)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		code = cs.ImportCert(*pubkey, *prikey)
-		if code != 0 {
+		_, err = cs.ImportCert(*pubkey, *prikey)
+		if err != nil {
 			return
 		}
 	default:
