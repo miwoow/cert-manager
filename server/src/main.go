@@ -48,6 +48,7 @@ func main() {
 		}
 		_, err = cs.ImportCert(*pubkey, *prikey)
 		if err != nil {
+			fmt.Println(err)
 			return
 		}
 	default:
