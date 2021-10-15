@@ -8,7 +8,9 @@ import (
 )
 
 type FDConf struct {
-	CertPath string
+	CertPath string `yaml:"certPath"`
+	ListenIp string `yaml:"listenIp"`
+	ListenPort int `yaml:"listenPort"`
 }
 
 func (c *FDConf) GetConf (configPath string) (*FDConf, error) {

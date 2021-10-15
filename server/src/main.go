@@ -8,9 +8,9 @@ import (
 )
 
 var configFile = flag.String("config", "./config.yaml", "Use this config file.")
-var runMode = flag.String("runMode", "d", "Run as daemon.")
 var action = flag.String("action", "", `Action to do. Valiable actions:
-import: Import cert to server.`)
+import: Import cert to server.
+daemon: Run as Daemon.`)
 var pubkey = flag.String("pub", "", "Public key to use in action.")
 var prikey = flag.String("pri", "", "Private key to use in action.")
 
@@ -51,6 +51,8 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+	case "daemon":
+		TcpServerStart(conf.ListenIp, conf.ListenPort)
 	default:
 		log.Println("[ERROR] Action not support.")
 	}
