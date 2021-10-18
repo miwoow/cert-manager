@@ -22,9 +22,9 @@ const (
 )
 
 const (
-	CLIENTAUTH_PKGID         = iota
-	SERVERAUTHTOKEN_PKGID    = iota
-	CLIENTAUTHTOKENACK_PKGID = iota
+	CLIENTAUTH_PKGID         = iota + 1
+	SERVERAUTHTOKEN_PKGID    = iota + 1
+	CLIENTAUTHTOKENACK_PKGID = iota + 1
 )
 
 type CertClient struct {

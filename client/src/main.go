@@ -1,11 +1,38 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"net"
 
 	"google.golang.org/protobuf/proto"
 )
+
+var cache [1024]byte
+var cachelen int = 0
+var parseStatus int
+
+func ParseData(data []byte) error {
+	var longCache []byte
+	var pos int
+	longCache = make([]byte, 0)
+	if cachelen > 0 {
+		longCache = append(longCache, cache[:cachelen]...)
+		longCache = append(longCache, data...)
+	}
+	if len(longCache) > 1024 {
+		return errors.New("pkg too long")
+	}
+	pos = 0
+	for {
+		if pos > len(longCache) {
+			break
+		}
+
+	}
+	return nil
+}
 
 func main() {
 	conn, err := net.Dial("tcp", "127.0.0.1:6666")
@@ -31,6 +58,20 @@ func main() {
 	data = append(data, Int2Byte(pkgid)...)
 	data = append(data, out...)
 	conn.Write(data)
+	for {
+		var buf [1024]byte
+		reader := bufio.NewReader(conn)
+		n, err := reader.Read(buf[:])
+		if err != nil {
+			fmt.Println("[ERROR] Read from server error", err)
+			break
+		}
+		err = ParseData(buf[:n])
+		if err != nil {
+			fmt.Println("[ERROR] Error accured: ", err)
+			break
+		}
+	}
 	// inputReader := bufio.NewReader(os.Stdin)
 	// for {
 	// 	input, _ := inputReader.ReadString('\n')
