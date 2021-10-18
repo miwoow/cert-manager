@@ -1,20 +1,19 @@
 syntax = "proto3";
-package certmanager;
+package certmanagerproto;
 
 //import "google/protobuf/timestamp.proto";
 
-option go_package = "./certmanagerproto";
+option go_package = "./main";
 
 message ClientAuth {
-	string ip=1;
-	string domain=2;
-	string certificates=3;
+	string domain=1;
+	string certificates=2;
 }
 
 message ServerAuthToken {
-	string token=1;
+	string cryptotoken=1;
 }
 
 message ClientAuthTokenACK {
-	string tokenACK=1;
+	string cryptotokenACK=1;
 }
