@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 )
@@ -15,7 +15,7 @@ var pubkey = flag.String("pub", "", "Public key to use in action.")
 var prikey = flag.String("pri", "", "Private key to use in action.")
 
 func init() {
-	logFile, err := os.OpenFile("./cmserver.log", os.O_CREATE | os. O_WRONLY | os.O_APPEND, 0644)
+	logFile, err := os.OpenFile("./cmserver.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		fmt.Println("[ERROR] OPen log file failed, err: ", err)
 		return

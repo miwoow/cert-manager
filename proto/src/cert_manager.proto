@@ -3,7 +3,7 @@ package certmanagerproto;
 
 //import "google/protobuf/timestamp.proto";
 
-option go_package = "./main";
+option go_package = "./common";
 
 message ClientAuth {
 	string domain=1;
@@ -11,9 +11,9 @@ message ClientAuth {
 }
 
 message ServerAuthToken {
-	string cryptotoken=1;
+	bytes cryptotoken=1;
 }
 
 message ClientAuthTokenACK {
-	string cryptotokenACK=1;
+	bytes cryptotokenACK=1;
 }

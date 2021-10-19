@@ -1,7 +1,8 @@
 package common
 
 const (
-	PSTART = iota
+	PUNKNOWN = iota
+	PSTART
 	PPKGLEN
 	PPKGLENEND
 	PMSGID
@@ -10,7 +11,8 @@ const (
 )
 
 const (
-	CLIENTAUTH_PKGID = iota + 1
+	UNKNOWN_PKGID = iota
+	CLIENTAUTH_PKGID
 	SERVERAUTHTOKEN_PKGID
 	CLIENTAUTHTOKENACK_PKGID
 )

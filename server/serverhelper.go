@@ -11,7 +11,8 @@ var clients map[string]*CertClient
 var clientsLock sync.Mutex
 
 func ClientHandlerProcess(c *CertClient) {
-	conn := *(c.Connp)
+	conn := c.Machine.Conn
+
 	defer conn.Close()
 	ip := conn.RemoteAddr().String()
 	for {
@@ -25,7 +26,8 @@ func ClientHandlerProcess(c *CertClient) {
 			clientsLock.Unlock()
 			break
 		}
-		err = c.ParsePackage(buf[:n], n)
+		fmt.Println("Recv data: ", n)
+		err = c.Machine.ParseData(buf[:n])
 		if err != nil {
 			fmt.Println("[ERROR] parse pkg error: ", err)
 			clientsLock.Lock()
@@ -33,9 +35,6 @@ func ClientHandlerProcess(c *CertClient) {
 			clientsLock.Unlock()
 			break
 		}
-		// recvStr := string(buf[:n])
-		// fmt.Println("Recv Client data: ", recvStr)
-		// conn.Write([]byte(recvStr + " ACK."))
 	}
 }
 
@@ -51,11 +50,10 @@ func TcpServerStart(ip string, port int) (int, error) {
 			continue
 		}
 
-		c, _ := NewCertClient(conn.RemoteAddr().String(), &conn, 0)
+		c, _ := NewCertClient(conn.RemoteAddr().String(), &conn)
 		clientsLock.Lock()
 		clients[conn.RemoteAddr().String()] = c
 		clientsLock.Unlock()
 		go ClientHandlerProcess(c)
 	}
-	return 0, nil
 }

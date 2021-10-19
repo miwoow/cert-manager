@@ -73,6 +73,7 @@ func main() {
 	defer conn.Close()
 
 	stateMachine.Conn = conn
+	stateMachine.ParseStatus = common.PSTART
 
 	clientAuthPkg := &common.ClientAuth{}
 	clientAuthPkg.Domain = "www.wxianlai.com"
@@ -81,7 +82,7 @@ func main() {
 	if err != nil {
 		return
 	}
-	data := common.PackPkg(1, out)
+	data := common.PackPkg(common.CLIENTAUTH_PKGID, out)
 	conn.Write(data)
 	fmt.Println("Send Auth pkg.")
 	for {
