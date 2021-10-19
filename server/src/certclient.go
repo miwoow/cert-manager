@@ -12,21 +12,6 @@ import (
 
 //WARNING: on package can't longer than 1024 byte.
 
-const (
-	PSTART     = iota
-	PPKGLEN    = iota
-	PPKGLENEND = iota
-	PMSGID     = iota
-	PMSGIDEND  = iota
-	PCOPYDATA  = iota
-)
-
-const (
-	CLIENTAUTH_PKGID         = iota + 1
-	SERVERAUTHTOKEN_PKGID    = iota + 1
-	CLIENTAUTHTOKENACK_PKGID = iota + 1
-)
-
 type CertClient struct {
 	Ip             string
 	Connp          *net.Conn

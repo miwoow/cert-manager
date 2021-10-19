@@ -2,37 +2,11 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"net"
 
 	"google.golang.org/protobuf/proto"
 )
-
-var cache [1024]byte
-var cachelen int = 0
-var parseStatus int
-
-func ParseData(data []byte) error {
-	var longCache []byte
-	var pos int
-	longCache = make([]byte, 0)
-	if cachelen > 0 {
-		longCache = append(longCache, cache[:cachelen]...)
-		longCache = append(longCache, data...)
-	}
-	if len(longCache) > 1024 {
-		return errors.New("pkg too long")
-	}
-	pos = 0
-	for {
-		if pos > len(longCache) {
-			break
-		}
-
-	}
-	return nil
-}
 
 func main() {
 	conn, err := net.Dial("tcp", "127.0.0.1:6666")
@@ -40,6 +14,8 @@ func main() {
 		fmt.Println("err ", err)
 		return
 	}
+
+	var stateMachine StreamParseStateMachine
 
 	defer conn.Close()
 	clientAuthPkg := &ClientAuth{}
@@ -49,14 +25,7 @@ func main() {
 	if err != nil {
 		return
 	}
-	var data []byte
-	var pkglen int
-	var pkgid int = 1
-	pkglen = len(out) + 2
-	data = make([]byte, 0)
-	data = append(data, Int2Byte(pkglen)...)
-	data = append(data, Int2Byte(pkgid)...)
-	data = append(data, out...)
+	data := PackPkg(1, out)
 	conn.Write(data)
 	for {
 		var buf [1024]byte
@@ -66,7 +35,7 @@ func main() {
 			fmt.Println("[ERROR] Read from server error", err)
 			break
 		}
-		err = ParseData(buf[:n])
+		err = stateMachine.ParseData(buf[:n])
 		if err != nil {
 			fmt.Println("[ERROR] Error accured: ", err)
 			break
