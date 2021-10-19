@@ -10,6 +10,8 @@ import (
 	"net"
 	"os"
 
+	"cert-manager/common"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -17,7 +19,7 @@ var cert = flag.String("cert", "", "Cert files in pem format.")
 var prikey = flag.String("pri", "", "Private key file.")
 
 func main() {
-	var stateMachine StreamParseStateMachine
+	var stateMachine common.StreamParseStateMachine
 
 	flag.Parse()
 
@@ -72,14 +74,14 @@ func main() {
 
 	stateMachine.Conn = conn
 
-	clientAuthPkg := &ClientAuth{}
+	clientAuthPkg := &common.ClientAuth{}
 	clientAuthPkg.Domain = "www.wxianlai.com"
 	clientAuthPkg.Certificates = "abc"
 	out, err := proto.Marshal(clientAuthPkg)
 	if err != nil {
 		return
 	}
-	data := PackPkg(1, out)
+	data := common.PackPkg(1, out)
 	conn.Write(data)
 	fmt.Println("Send Auth pkg.")
 	for {

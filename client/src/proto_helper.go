@@ -1,1 +1,0 @@
-/home/kali/github/cert-manager/server/src/proto_helper.go

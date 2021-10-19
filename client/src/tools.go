@@ -1,1 +1,0 @@
-/home/kali/github/cert-manager/server/src/tools.go
