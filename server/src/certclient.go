@@ -105,12 +105,11 @@ PARSEEND:
 func (c *CertClient) ParsePkgAndResponse() error {
 	switch c.PackageId {
 	case CLIENTAUTH_PKGID:
+		fmt.Println("Recv client auth pkg.")
 		pkg := &ClientAuth{}
 		if err := proto.Unmarshal(c.PackageData, pkg); err != nil {
 			return err
 		}
-		fmt.Println(string(pkg.Domain))
-		fmt.Println(string(pkg.Certificates))
 
 	}
 	return nil

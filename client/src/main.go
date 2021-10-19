@@ -2,22 +2,76 @@ package main
 
 import (
 	"bufio"
+	"crypto/x509"
+	"encoding/pem"
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"os"
 
 	"google.golang.org/protobuf/proto"
 )
 
+var cert = flag.String("cert", "", "Cert files in pem format.")
+var prikey = flag.String("pri", "", "Private key file.")
+
 func main() {
+	var stateMachine StreamParseStateMachine
+
+	flag.Parse()
+
+	_, err := os.Stat(*prikey)
+	if err != nil {
+		fmt.Println("Pri key is not exists: ", *prikey)
+		return
+	}
+
+	keybytes, err := ioutil.ReadFile(*prikey)
+	if err != nil {
+		fmt.Println("Read pri key file error", err)
+		return
+	}
+
+	block, _ := pem.Decode(keybytes)
+	if block == nil || block.Type != "RSA PRIVATE KEY" {
+		fmt.Println("Faile to decode PEM code containing Private key.")
+		return
+	}
+
+	stateMachine.PrivateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		fmt.Println("parse pri key from pem block err.r")
+		return
+	}
+
+	keybytes, err = ioutil.ReadFile(*cert)
+	if err != nil {
+		fmt.Println("Read Cert file failed.", err)
+		return
+	}
+
+	block, _ = pem.Decode(keybytes)
+	if block == nil || block.Type != "CERTIFICATE" {
+		fmt.Println("faile to decode PEM code containing Certificat.")
+		return
+	}
+
+	stateMachine.Certs, err = x509.ParseCertificates(block.Bytes)
+	if err != nil {
+		fmt.Print("failed parse certificates:", err)
+		return
+	}
+
 	conn, err := net.Dial("tcp", "127.0.0.1:6666")
 	if err != nil {
 		fmt.Println("err ", err)
 		return
 	}
-
-	var stateMachine StreamParseStateMachine
-
 	defer conn.Close()
+
+	stateMachine.Conn = conn
+
 	clientAuthPkg := &ClientAuth{}
 	clientAuthPkg.Domain = "www.wxianlai.com"
 	clientAuthPkg.Certificates = "abc"
@@ -27,6 +81,7 @@ func main() {
 	}
 	data := PackPkg(1, out)
 	conn.Write(data)
+	fmt.Println("Send Auth pkg.")
 	for {
 		var buf [1024]byte
 		reader := bufio.NewReader(conn)
@@ -41,26 +96,4 @@ func main() {
 			break
 		}
 	}
-	// inputReader := bufio.NewReader(os.Stdin)
-	// for {
-	// 	input, _ := inputReader.ReadString('\n')
-	// 	inputInfo := strings.Trim(input, "\r\n")
-	// 	if strings.ToUpper(inputInfo) == "Q" {
-	// 		return
-	// 	}
-
-	// 	_, err := conn.Write([]byte(inputInfo))
-	// 	if err != nil {
-	// 		fmt.Println("send failed, err:", err)
-	// 		return
-	// 	}
-
-	// 	buf := [512]byte{}
-	// 	n, err := conn.Read(buf[:])
-	// 	if err != nil {
-	// 		fmt.Println("recv failed, err:", err)
-	// 		return
-	// 	}
-	// 	fmt.Println(string(buf[:n]))
-	// }
 }
