@@ -18,6 +18,7 @@ var clientsLock sync.Mutex
 
 func PkgHandler(s *common.StreamParseStateMachine) error {
 	fmt.Println("Start parse pkg and send response.")
+	var err error
 	switch s.TmpPkg.PkgId {
 	case common.CLIENTAUTH_PKGID:
 		fmt.Println("Recv client auth pkg.")
@@ -26,7 +27,7 @@ func PkgHandler(s *common.StreamParseStateMachine) error {
 			return err
 		}
 
-		s.PrivateKey, err := common.LoadPriKeyFromPEM("6270132__wxianlai.com.key")
+		s.PrivateKey, err = common.LoadPriKeyFromPEM("6270132__wxianlai.com.key")
 		if err != nil {
 			fmt.Println("parse pri key from pem block error")
 			return errors.New("parse pri key from pem block error")
