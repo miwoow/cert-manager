@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"os"
 
 	"cert-manager/common"
 
@@ -16,6 +17,7 @@ import (
 
 var cert = flag.String("cert", "", "Cert files in pem format.")
 var prikey = flag.String("pri", "", "Private key file.")
+var domain = flag.String("domain", "", "Domain for process.")
 
 func main() {
 	var stateMachine common.StreamParseStateMachine
@@ -43,11 +45,16 @@ func main() {
 	defer conn.Close()
 
 	stateMachine.Conn = conn
-	// stateMachine.ParseStatus = common.PSTART
+	stateMachine.ParseStatus = common.PSTART
 
 	clientAuthPkg := &common.ClientAuth{}
-	clientAuthPkg.Domain = "www.wxianlai.com"
-	clientAuthPkg.Certificates = "abc"
+	clientAuthPkg.Domain = *domain
+	content, err := os.ReadFile(*cert)
+	if err != nil {
+		fmt.Println("Read certs file error: ", err)
+		return
+	}
+	clientAuthPkg.Certificates = append(clientAuthPkg.Certificates, content...)
 	out, err := proto.Marshal(clientAuthPkg)
 	if err != nil {
 		return

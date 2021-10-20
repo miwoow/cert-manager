@@ -7,7 +7,7 @@ option go_package = "./common";
 
 message ClientAuth {
 	string domain=1;
-	string certificates=2;
+	bytes certificates=2;
 }
 
 message ServerAuthToken {

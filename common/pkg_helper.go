@@ -14,8 +14,8 @@ type CMPkg struct {
 
 func PackPkg(pkgId int, data []byte) []byte {
 	var pkg []byte
-	pkg = append(pkg, Int2Byte(len(data)+2)...)
 	pkg = append(pkg, Int2Byte(pkgId)...)
+	pkg = append(pkg, Int2Byte(len(data))...)
 	pkg = append(pkg, data...)
 	return pkg
 }
@@ -36,7 +36,7 @@ func CMPkgLoadFromBuf(buf []byte) (*CMPkg, error) {
 	tmp[0] = buf[2]
 	tmp[1] = buf[3]
 	pkg.PkgId = Byte2Int(tmp[:])
-	pkg.PkgData = make([]byte, pkg.PkgLen-2)
+	pkg.PkgData = make([]byte, pkg.PkgLen)
 	n := copy(pkg.PkgData, buf[4:])
 	fmt.Println("Copyed bytes from buf to pkg: ", n)
 	return pkg, nil

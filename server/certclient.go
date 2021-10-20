@@ -15,6 +15,6 @@ type CertClient struct {
 func NewCertClient(ip string, conn *net.Conn) (*CertClient, error) {
 	c := &CertClient{Ip: ip}
 	c.Machine.Conn = *conn
-	// c.Machine.ParseStatus = common.PSTART
+	c.Machine.ParseStatus = common.PSTART
 	return c, nil
 }

@@ -77,12 +77,12 @@ func PkgHandler(s *common.StreamParseStateMachine) error {
 
 func ClientHandlerProcess(c *CertClient) {
 	conn := c.Machine.Conn
+	reader := bufio.NewReader(conn)
+	var buf [1024]byte
 
 	defer conn.Close()
 	ip := conn.RemoteAddr().String()
 	for {
-		reader := bufio.NewReader(conn)
-		var buf [1024]byte
 		n, err := reader.Read(buf[:])
 		if err != nil {
 			fmt.Println("read from client failed, err: ", err)
