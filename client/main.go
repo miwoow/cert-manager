@@ -2,13 +2,12 @@ package main
 
 import (
 	"bufio"
-	"crypto/x509"
-	"encoding/pem"
+	"crypto/rand"
+	"crypto/rsa"
+	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
-	"os"
 
 	"cert-manager/common"
 
@@ -20,46 +19,17 @@ var prikey = flag.String("pri", "", "Private key file.")
 
 func main() {
 	var stateMachine common.StreamParseStateMachine
+	var err error
 
 	flag.Parse()
 
-	_, err := os.Stat(*prikey)
-	if err != nil {
-		fmt.Println("Pri key is not exists: ", *prikey)
-		return
-	}
-
-	keybytes, err := ioutil.ReadFile(*prikey)
-	if err != nil {
-		fmt.Println("Read pri key file error", err)
-		return
-	}
-
-	block, _ := pem.Decode(keybytes)
-	if block == nil || block.Type != "RSA PRIVATE KEY" {
-		fmt.Println("Faile to decode PEM code containing Private key.")
-		return
-	}
-
-	stateMachine.PrivateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	stateMachine.PrivateKey, err = common.LoadPriKeyFromPEM(*prikey)
 	if err != nil {
 		fmt.Println("parse pri key from pem block err.r")
 		return
 	}
 
-	keybytes, err = ioutil.ReadFile(*cert)
-	if err != nil {
-		fmt.Println("Read Cert file failed.", err)
-		return
-	}
-
-	block, _ = pem.Decode(keybytes)
-	if block == nil || block.Type != "CERTIFICATE" {
-		fmt.Println("faile to decode PEM code containing Certificat.")
-		return
-	}
-
-	stateMachine.Certs, err = x509.ParseCertificates(block.Bytes)
+	stateMachine.Certs, err = common.LoadCertsFromPEM(*cert)
 	if err != nil {
 		fmt.Print("failed parse certificates:", err)
 		return
@@ -73,7 +43,7 @@ func main() {
 	defer conn.Close()
 
 	stateMachine.Conn = conn
-	stateMachine.ParseStatus = common.PSTART
+	// stateMachine.ParseStatus = common.PSTART
 
 	clientAuthPkg := &common.ClientAuth{}
 	clientAuthPkg.Domain = "www.wxianlai.com"
@@ -93,10 +63,48 @@ func main() {
 			fmt.Println("[ERROR] Read from server error", err)
 			break
 		}
-		err = stateMachine.ParseData(buf[:n])
+		err = stateMachine.ParseData(buf[:n], PkgHandler)
 		if err != nil {
 			fmt.Println("[ERROR] Error accured: ", err)
 			break
 		}
 	}
+}
+
+func PkgHandler(s *common.StreamParseStateMachine) error {
+	fmt.Println("Start parse pkg and send response.")
+	switch s.TmpPkg.PkgId {
+	case common.SERVERAUTHTOKEN_PKGID:
+		fmt.Println("Recv server auth token pkg.")
+		pkg := &common.ServerAuthToken{}
+		if err := proto.Unmarshal(s.TmpPkg.PkgData, pkg); err != nil {
+			return err
+		}
+		plainToken, err := s.PrivateKey.Decrypt(rand.Reader, []byte(pkg.GetCryptotoken()), nil)
+		if err != nil {
+			return err
+		}
+		fmt.Println("plain token is :", string(plainToken))
+		clientTokenAckPkg := common.ClientAuthTokenACK{}
+		ack := [3]byte{'A', 'C', 'K'}
+		cryptoTokenAck, err := rsa.EncryptPKCS1v15(rand.Reader, &s.PrivateKey.PublicKey, append(plainToken, ack[:]...))
+		if err != nil {
+			return err
+		}
+
+		clientTokenAckPkg.CryptotokenACK = append(clientTokenAckPkg.CryptotokenACK, cryptoTokenAck...)
+		out, err := proto.Marshal(&clientTokenAckPkg)
+		if err != nil {
+			return err
+		}
+		pkgData := common.PackPkg(common.CLIENTAUTHTOKENACK_PKGID, out)
+		_, err = s.Conn.Write(pkgData)
+		if err != nil {
+			return err
+		}
+		fmt.Println("Send cleint auth token ack pkg.")
+	default:
+		return errors.New("pkg id is unknown")
+	}
+	return nil
 }

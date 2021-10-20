@@ -11,7 +11,9 @@ message ClientAuth {
 }
 
 message ServerAuthToken {
-	bytes cryptotoken=1;
+	int32	code=1;
+	string	msg=2;
+	bytes	cryptotoken=3;
 }
 
 message ClientAuthTokenACK {

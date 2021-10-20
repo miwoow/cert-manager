@@ -1,79 +1,39 @@
 package main
 
 import (
+	"cert-manager/common"
+	"errors"
 	"fmt"
 	"os"
-	"io/ioutil"
-	"strings"
-	"errors"
 	"path/filepath"
-	"encoding/pem"
-	"crypto/x509"
-	"crypto/rsa"
+	"strings"
 )
 
 type CertStorage struct {
 	CertPath string
 }
 
-func (s *CertStorage) CheckPubPriPair(cert string, pri string) (int, error) {
-	var err error
-	_, err = os.Stat(cert)
+func (s *CertStorage) CheckPubPriPair(certPath string, priPath string) (int, error) {
+	prikey, err := common.LoadPriKeyFromPEM(priPath)
 	if err != nil {
 		return 1, err
 	}
-	_, err = os.Stat(pri)
+	certs, err := common.LoadCertsFromPEM(certPath)
 	if err != nil {
 		return 1, err
 	}
-
-	var keybytes []byte
-	keybytes, err = ioutil.ReadFile(pri)
-	if err != nil {
-		return 1, err
-	}
-
-	block, _ := pem.Decode(keybytes)
-	if block == nil || block.Type != "RSA PRIVATE KEY" {
-		return 1, errors.New("Faile to decode PEM code containing Private key.")
-	}
-
-	var prikey *rsa.PrivateKey
-	prikey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		return 1, err
-	}
-
-	keybytes, err = ioutil.ReadFile(cert)
-	if err != nil {
-		return 1, err
-	}
-
-	block, _ = pem.Decode(keybytes)
-	if block == nil || block.Type != "CERTIFICATE" {
-		return 1, errors.New("faile to decode PEM code containing Certificat.")
-	}
-
-	var certs []*x509.Certificate
-	certs, err = x509.ParseCertificates(block.Bytes)
-	if err != nil {
-		return 1, err
-	}
-
 
 	if prikey.PublicKey.Equal(certs[0].PublicKey) {
 		return 0, nil
 	} else {
-		return 1, errors.New("Pub and pri key is not a pair.")
+		return 1, errors.New("pub and pri key is not a pair")
 	}
 }
 
 func (s *CertStorage) Init(path string) (int, error) {
 	s.CertPath = path
-	var pubkeypath string
-	var prikeypath string
-	pubkeypath = filepath.Join(s.CertPath, "pub")
-	prikeypath = filepath.Join(s.CertPath, "pri")
+	pubkeypath := filepath.Join(s.CertPath, "pub")
+	prikeypath := filepath.Join(s.CertPath, "pri")
 	_, err := os.Stat(pubkeypath)
 	if err != nil {
 		err = os.Mkdir(pubkeypath, os.ModePerm)
@@ -96,49 +56,67 @@ func (s *CertStorage) CertList() {
 	fmt.Println("[TODO] list certs.")
 }
 
-func (s *CertStorage) CertNewName(cert string) (string, error) {
-	keybytes, err := ioutil.ReadFile(cert)
-	if err != nil {
-		return "", err
-	}
-
-	block, _ := pem.Decode(keybytes)
-	if block == nil {
-		return "", errors.New("Failed to decode PEM data containg cert info.")
-	}
-
-	var certs []*x509.Certificate
-	certs, err = x509.ParseCertificates(block.Bytes)
+func (s *CertStorage) CertNewName(certPath string) (string, error) {
+	certs, err := common.LoadCertsFromPEM(certPath)
 	if err != nil {
 		return "", err
 	}
 
 	if len(certs) == 0 {
-		return "", errors.New("Certificate file contains 0 certificat.")
+		return "", errors.New("certificate file contains 0 certificat")
 	}
 	//fmt.Println(certs[0].NotBefore)
 	//fmt.Println(certs[0].NotAfter)
 	y := certs[0].NotAfter
-	newFileName := fmt.Sprintf("%s_%d_%02d_%02d", strings.Replace(certs[0].Subject.CommonName, "*", "star", -1), y.Year(), y.Month(), y.Day())
+	newFileName := fmt.Sprintf("%s_%d_%02d_%02d", strings.Replace(certs[0].Subject.CommonName, "*", "STAR", -1), y.Year(), y.Month(), y.Day())
 	return newFileName, nil
 }
 
-func (s *CertStorage) ImportCert(pub string, pri string) (int, error) {
+func (s *CertStorage) SearchCertsForDomain(domain string) ([]string, error) {
+	//TODO: return slice may be inefficent.
+	var certs []string
+
+	return certs, nil
+}
+
+func (s *CertStorage) ImportCert(certPath string, priPath string) (int, error) {
 	// check pub or pri key is dumplicated.
 	// check pub and pri key is right.
 	var err error
 	var name string
-	_, err = s.CheckPubPriPair(pub, pri)
+	_, err = s.CheckPubPriPair(certPath, priPath)
 	if err != nil {
 		return 1, err
 	}
 
-	name, err = s.CertNewName(pub)
+	name, err = s.CertNewName(certPath)
 	if err != nil {
 		return 1, err
 	}
 	fmt.Println("cert new name: ", name)
-	// import it.
-	fmt.Println("[TODO] import certs.")
+
+	// check dumplicate.
+	newCertPath := filepath.Join(s.CertPath, "pub", name+".pem")
+	_, err = os.Stat(newCertPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// import it
+			err = os.Rename(certPath, newCertPath)
+			if err != nil {
+				return 1, err
+			}
+			newPriPath := filepath.Join(s.CertPath, "pri", name+".key")
+			err = os.Rename(priPath, newPriPath)
+			if err != nil {
+				return 1, err
+			}
+		} else if os.IsExist(err) {
+			// dumplicate. ignore.
+			return 0, nil
+		} else {
+			return 1, err
+		}
+	}
+
 	return 0, nil
 }

@@ -5,14 +5,18 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"unicode/utf8"
 )
 
 var configFile = flag.String("config", "./config.yaml", "Use this config file.")
 var action = flag.String("action", "", `Action to do. Valiable actions:
 import: Import cert to server.
-daemon: Run as Daemon.`)
+daemon: Run as Daemon.
+search: Search certs for this domain.`)
 var pubkey = flag.String("pub", "", "Public key to use in action.")
 var prikey = flag.String("pri", "", "Private key to use in action.")
+
+var domain = flag.String("domain", "", "Domain names for search action.")
 
 func init() {
 	logFile, err := os.OpenFile("./cmserver.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -38,19 +42,38 @@ func main() {
 
 	log.Println("action :", *action)
 
+	var cs CertStorage
+	_, err = cs.Init(conf.CertPath)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	switch *action {
 	case "import":
-		var cs CertStorage
-		_, err := cs.Init(conf.CertPath)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
 		_, err = cs.ImportCert(*pubkey, *prikey)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
+	case "search":
+		if utf8.RuneCountInString(*domain) == 0 {
+			fmt.Println("Domain is empty.")
+			return
+		}
+		certsName, err := cs.SearchCertsForDomain(*domain)
+		if err != nil {
+			fmt.Println("Search certs for domain faild: ", err)
+			return
+		}
+		if len(certsName) == 0 {
+			return
+		} else {
+			for _, name := range certsName {
+				fmt.Println(name)
+			}
+		}
+
 	case "daemon":
 		TcpServerStart(conf.ListenIp, conf.ListenPort)
 	default:
