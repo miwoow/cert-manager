@@ -10,9 +10,10 @@ import (
 type CertClient struct {
 	Ip      string
 	Machine common.StreamParseStateMachine
+	Server  *CertServer
 }
 
-func NewCertClient(ip string, conn *net.Conn) (*CertClient, error) {
+func NewCertClient(ip string, conn *net.Conn, server *CertServer) (*CertClient, error) {
 	c := &CertClient{Ip: ip}
 	c.Machine.Conn = *conn
 	c.Machine.ParseStatus = common.PSTART

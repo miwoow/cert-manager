@@ -18,7 +18,7 @@ var clientsLock sync.Mutex
 
 func PkgHandler(s *common.StreamParseStateMachine) error {
 	fmt.Println("Start parse pkg and send response.")
-	var err error
+	certInstance := CertServerInstance()
 	switch s.TmpPkg.PkgId {
 	case common.CLIENTAUTH_PKGID:
 		fmt.Println("Recv client auth pkg.")
@@ -26,32 +26,34 @@ func PkgHandler(s *common.StreamParseStateMachine) error {
 		if err := proto.Unmarshal(s.TmpPkg.PkgData, pkg); err != nil {
 			return err
 		}
-
-		s.PrivateKey, err = common.LoadPriKeyFromPEM("6270132__wxianlai.com.key")
-		if err != nil {
-			fmt.Println("parse pri key from pem block error")
-			return errors.New("parse pri key from pem block error")
-		}
-
-		s.Certs, err = common.LoadCertsFromPEM("6270132__wxianlai.com.pem")
-		if err != nil {
-			fmt.Print("failed parse certificates:", err)
-			return err
-		}
-		// test code end
 		sendPkg := common.ServerAuthToken{}
+		fmt.Println(pkg.GetDomain())
 
-		cryptoToken, err := rsa.EncryptPKCS1v15(rand.Reader, &s.PrivateKey.PublicKey, []byte("crypto token"))
+		ckForClient, err := certInstance.GetCertsKeyByCertsPem(pkg.GetCertificates())
 		if err != nil {
 			return err
 		}
-		sendPkg.Code = 0
-		sendPkg.Msg = ""
-		sendPkg.Cryptotoken = append(sendPkg.Cryptotoken, cryptoToken...)
+		if ckForClient == nil {
+			sendPkg.Code = 1
+			sendPkg.Msg = "No certs for this domain."
+		} else {
+			sendPkg.Code = 0
+			sendPkg.Msg = ""
+			s.PrivateKey = ckForClient.Prikey
+			s.Certs = ckForClient.Certs
+			cryptoToken, err := rsa.EncryptPKCS1v15(rand.Reader, &(s.PrivateKey.PublicKey), []byte("crypto token"))
+			if err != nil {
+				return err
+			}
+
+			sendPkg.Cryptotoken = append(sendPkg.Cryptotoken, cryptoToken...)
+		}
+
 		out, err := proto.Marshal(&sendPkg)
 		if err != nil {
 			return err
 		}
+
 		pkgData := common.PackPkg(common.SERVERAUTHTOKEN_PKGID, out)
 		_, err = s.Conn.Write(pkgData)
 		if err != nil {
@@ -91,7 +93,7 @@ func ClientHandlerProcess(c *CertClient) {
 			clientsLock.Unlock()
 			break
 		}
-		fmt.Println("Recv data: ", n)
+		// fmt.Println("Recv data: ", n)
 		err = c.Machine.ParseData(buf[:n], PkgHandler)
 		if err != nil {
 			fmt.Println("[ERROR] parse pkg error: ", err)
@@ -103,9 +105,9 @@ func ClientHandlerProcess(c *CertClient) {
 	}
 }
 
-func TcpServerStart(ip string, port int) (int, error) {
+func TcpServerStart(certServer *CertServer) (int, error) {
 	clients = make(map[string]*CertClient)
-	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", ip, port))
+	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", certServer.Conf.ListenIp, certServer.Conf.ListenPort))
 	if err != nil {
 		return 1, err
 	}
@@ -115,7 +117,7 @@ func TcpServerStart(ip string, port int) (int, error) {
 			continue
 		}
 
-		c, _ := NewCertClient(conn.RemoteAddr().String(), &conn)
+		c, _ := NewCertClient(conn.RemoteAddr().String(), &conn, certServer)
 		clientsLock.Lock()
 		clients[conn.RemoteAddr().String()] = c
 		clientsLock.Unlock()

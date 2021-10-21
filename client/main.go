@@ -87,6 +87,9 @@ func PkgHandler(s *common.StreamParseStateMachine) error {
 		if err := proto.Unmarshal(s.TmpPkg.PkgData, pkg); err != nil {
 			return err
 		}
+		if pkg.GetCode() != 0 {
+			return errors.New(pkg.GetMsg())
+		}
 		plainToken, err := s.PrivateKey.Decrypt(rand.Reader, []byte(pkg.GetCryptotoken()), nil)
 		if err != nil {
 			return err

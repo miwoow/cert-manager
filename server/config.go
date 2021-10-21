@@ -1,19 +1,20 @@
 package main
 
 import (
-	"os"
-	"io/ioutil"
 	"errors"
+	"io/ioutil"
+	"os"
+
 	"gopkg.in/yaml.v2"
 )
 
 type FDConf struct {
-	CertPath string `yaml:"certPath"`
-	ListenIp string `yaml:"listenIp"`
-	ListenPort int `yaml:"listenPort"`
+	CertPath   string `yaml:"certPath"`
+	ListenIp   string `yaml:"listenIp"`
+	ListenPort int    `yaml:"listenPort"`
 }
 
-func (c *FDConf) GetConf (configPath string) (*FDConf, error) {
+func (c *FDConf) GetConf(configPath string) (*FDConf, error) {
 
 	_, err := os.Stat(configPath)
 

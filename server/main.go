@@ -33,6 +33,8 @@ func main() {
 	var conf *FDConf
 	var c FDConf
 
+	var certServer CertServer
+
 	flag.Parse()
 	conf, err = c.GetConf(*configFile)
 	if conf == nil {
@@ -42,12 +44,9 @@ func main() {
 
 	log.Println("action :", *action)
 
-	var cs CertStorage
-	_, err = cs.Init(conf.CertPath)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	cs := CertServerInstance()
+
+	certServer.Conf = conf
 
 	switch *action {
 	case "import":
@@ -61,25 +60,24 @@ func main() {
 			fmt.Println("Domain is empty.")
 			return
 		}
-		certsName, err := cs.SearchCertsForDomain(*domain)
+		certsForDomain, err := cs.SearchCertsForDomain(*domain)
 		if err != nil {
 			fmt.Println("Search certs for domain faild: ", err)
 			return
 		}
-		if len(certsName) == 0 {
+		if len(certsForDomain) == 0 {
+			fmt.Println("Can't find any certs for domain:", *domain)
 			return
 		} else {
-			for _, name := range certsName {
-				fmt.Println(name)
+			for _, certKeyPair := range certsForDomain {
+				fmt.Println("Cert for Domain: ", *domain, ", Subject name: ", certKeyPair.Certs[0].Subject.CommonName)
 			}
 		}
 
 	case "daemon":
-		TcpServerStart(conf.ListenIp, conf.ListenPort)
+		TcpServerStart(&certServer)
 	default:
 		log.Println("[ERROR] Action not support.")
 	}
 	log.Println(conf.CertPath)
-
-	fmt.Println("hello world")
 }

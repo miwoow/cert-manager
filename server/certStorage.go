@@ -1,16 +1,30 @@
 package main
 
 import (
+	"bytes"
 	"cert-manager/common"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 type CertStorage struct {
 	CertPath string
+}
+
+var instance *CertStorage
+var once sync.Once
+
+func CertServerInstance() *CertStorage {
+	once.Do(func() {
+		instance = &CertStorage{}
+		instance.Init("./certs")
+	})
+	return instance
 }
 
 func (s *CertStorage) CheckPubPriPair(certPath string, priPath string) (int, error) {
@@ -72,9 +86,60 @@ func (s *CertStorage) CertNewName(certPath string) (string, error) {
 	return newFileName, nil
 }
 
-func (s *CertStorage) SearchCertsForDomain(domain string) ([]string, error) {
+func (s *CertStorage) GetCertsKeyByCertsPem(certsPem []byte) (*CertKeyPair, error) {
+	var certKeyPair *CertKeyPair = nil
+
+	certsPath := filepath.Join(s.CertPath, "pub")
+
+	files, err := ioutil.ReadDir(certsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, onefile := range files {
+		if onefile.IsDir() {
+			continue
+		}
+		content, err := os.ReadFile(filepath.Join(certsPath, onefile.Name()))
+		if err != nil {
+			return nil, err
+		}
+		if bytes.Equal(content, certsPem) {
+			certKeyPair = &CertKeyPair{}
+			certKeyPair.LoadCertsKeyFromFile(s.CertPath, onefile.Name())
+			break
+		}
+	}
+
+	return certKeyPair, nil
+}
+
+func (s *CertStorage) SearchCertsForDomain(domain string) ([]*CertKeyPair, error) {
 	//TODO: return slice may be inefficent.
-	var certs []string
+	var certs []*CertKeyPair
+
+	certsPath := filepath.Join(s.CertPath, "pub")
+	files, err := ioutil.ReadDir(certsPath)
+	if err != nil {
+		return nil, err
+	}
+	for _, onefile := range files {
+		if onefile.IsDir() {
+			continue
+		}
+		certPath := filepath.Join(certsPath, onefile.Name())
+		certsInFile, err := common.LoadCertsFromPEM(certPath)
+		if err != nil {
+			continue
+		}
+		if certsInFile[0].VerifyHostname(domain) != nil {
+			continue
+		} else {
+			certKeyPair := &CertKeyPair{}
+			certKeyPair.LoadCertsKeyFromFile(s.CertPath, onefile.Name())
+			certs = append(certs, certKeyPair)
+		}
+	}
 
 	return certs, nil
 }
